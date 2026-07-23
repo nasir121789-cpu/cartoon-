@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cartoon_video - Video App</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0f0f1a;
+            --surface-color: #1a1a2e;
+            --card-color: rgba(30, 30, 60, 0.8);
+            --text-color: #e8e8f0;
+            --text-muted: #8888aa;
+            --accent: #6c5ce7;
+            --accent-blue: #3b82f6;
+            --accent-pink: #e84393;
+            --shadow: 0 8px 30px rgba(0,0,0,0.4);
+            --radius: 14px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            transition: 0.3s;
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
+
+        /* ===== HEADER ===== */
+        header {
+            background: rgba(15, 15, 30, 0.9);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .header-title { 
+            font-size: 20px; 
+            font-weight: 800; 
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .header-title i { color: var(--accent); }
+        .header-badge {
+            font-size: 10px;
+            background: var(--accent);
+            padding: 2px 10px;
+            border-radius: 20px;
+            color: #fff;
+            font-weight: 600;
+        }
+        .icon-btn { 
+            background: none; 
+            border: none; 
+            color: var(--text-color); 
+            font-size: 22px; 
+            cursor: pointer; 
+            padding: 8px 10px;
+            border-radius: 10px;
+            transition: 0.2s;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,0.05); }
+
+        /* ===== DRAWER ===== */
+        .drawer-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 150; display: none; backdrop-filter: blur(4px);
+        }
+        .drawer {
+            position: fixed; top: 0; left: 0; width: 280px; height: 100%;
+            background: var(--surface-color); z-index: 200;
+            transform: translateX(-100%); transition: transform 0.3s ease;
+            padding: 25px; box-shadow: 5px 0 30px rgba(0,0,0,0.5);
+            overflow-y: auto;
+        }
+        .drawer.active { transform: translateX(0); }
+        .drawer h2 { font-size: 20px; color: var(--accent); margin-bottom: 20px; }
+        .drawer h3 { font-size: 14px; color: var(--text-muted); margin: 20px 0 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; }
+        .drawer-item {
+            display: flex; align-items: center; gap: 15px;
+            padding: 12px 0; cursor: pointer; color: var(--text-color);
+            text-decoration: none; font-size: 15px; transition: 0.2s;
+            border-radius: 8px;
+        }
+        .drawer-item:hover { background: rgba(255,255,255,0.03); padding-left: 8px; }
+        .drawer-item i { width: 24px; text-align: center; color: var(--text-muted); }
+
+        /* Theme Selector */
+        .theme-selector { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+        .theme-dot {
+            width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+            border: 3px solid transparent; transition: 0.2s;
+        }
+        .theme-dot:hover { transform: scale(1.1); }
+        .theme-dot.active { border-color: #fff; box-shadow: 0 0 20px rgba(108, 92, 231, 0.3); }
+
+        /* ===== SEARCH ===== */
+        .search-container { padding: 15px 20px; display: flex; gap: 12px; }
+        .search-box {
+            flex: 1; padding: 13px 18px; border-radius: 12px; border: none;
+            background: var(--surface-color); color: var(--text-color);
+            outline: none; font-size: 15px; border: 1px solid rgba(255,255,255,0.04);
+        }
+        .search-box:focus { border-color: var(--accent); }
+
+        /* ===== CATEGORY GRID ===== */
+        .page { display: none; padding: 0 15px 20px; animation: fadeUp 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 18px;
+            padding-top: 5px;
+        }
+        .category-card {
+            background: var(--card-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.04);
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: var(--shadow);
+        }
+        .category-card:hover {
+            transform: translateY(-6px) scale(1.02);
+            border-color: var(--accent);
+            box-shadow: 0 12px 40px rgba(108, 92, 231, 0.15);
+        }
+        .category-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background: #1a1a2e;
+        }
+        .category-card .info {
+            padding: 14px;
+            text-align: center;
+        }
+        .category-card .name {
+            font-weight: 700;
+            font-size: 15px;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .category-card .count {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ===== VIDEO GRID (2 cards per row) ===== */
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            padding: 5px 0 20px;
+        }
+        @media (max-width: 480px) {
+            .video-grid { grid-template-columns: 1fr; }
+        }
+        .video-card {
+            background: var(--card-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.04);
+            transition: 0.3s;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+        }
+        .video-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 8px 30px rgba(108, 92, 231, 0.12);
+        }
+        .video-card .thumbnail {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%;
+            background: #111;
+            overflow: hidden;
+        }
+        .video-card .thumbnail img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+        }
+        .video-card .play-btn {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px; height: 50px;
+            background: rgba(108, 92, 231, 0.85);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            backdrop-filter: blur(4px);
+            border: 2px solid rgba(255,255,255,0.15);
+            transition: 0.3s;
+        }
+        .video-card:hover .play-btn {
+            transform: translate(-50%, -50%) scale(1.1);
+            background: rgba(108, 92, 231, 1);
+        }
+        .video-card .info {
+            padding: 12px 14px;
+        }
+        .video-card .title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #fff;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* ===== BACK BUTTON ===== */
+        .back-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            margin-bottom: 10px;
+        }
+        .back-row .back-btn {
+            background: rgba(255,255,255,0.05);
+            border: none;
+            color: var(--text-color);
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+        .back-row .back-btn:hover { background: rgba(255,255,255,0.08); }
+        .back-row h2 {
+            font-size: 18px;
+            font-weight: 700;
+            flex: 1;
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state i { font-size: 48px; opacity: 0.3; margin-bottom: 15px; display: block; }
+        .empty-state p { font-size: 16px; }
+
+        /* ===== SOCIAL LINKS IN DRAWER ===== */
+        .social-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .social-item img { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; }
+        .social-item:hover { color: var(--accent); }
+
+        /* ===== VIDEO PLAYER PAGE (like a YouTube-style watch page) ===== */
+        #player-page { padding: 0 0 20px; }
+        .player-back-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 14px 15px;
+            background: rgba(15, 15, 30, 0.95);
+        }
+        .player-back-row .back-btn {
+            background: rgba(255,255,255,0.08);
+            border: none;
+            color: var(--text-color);
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .player-back-row h2 { font-size: 16px; font-weight: 700; }
+
+        .player-video-wrap {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%;
+            background: #000;
+        }
+        .player-video-wrap iframe,
+        .player-video-wrap video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            border: none;
+        }
+
+        .player-info { padding: 16px 18px 10px; }
+        .player-title { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.4; }
+        .player-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .player-channel { font-size: 13px; color: var(--text-muted); }
+        .player-earned-badge {
+            font-size: 11px;
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .next-videos-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-color);
+            padding: 18px 18px 12px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            margin-top: 8px;
+        }
+        .next-videos-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 0 15px 15px;
+        }
+        .next-video-item {
+            display: flex;
+            gap: 12px;
+            cursor: pointer;
+            background: var(--card-color);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.04);
+            transition: 0.2s;
+        }
+        .next-video-item:active { transform: scale(0.98); }
+        .next-thumb {
+            width: 150px;
+            flex-shrink: 0;
+            aspect-ratio: 16/9;
+            position: relative;
+            background: #111;
+        }
+        .next-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .next-info { padding: 8px 10px; flex: 1; min-width: 0; }
+        .next-title {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #fff;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .next-channel { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+        /* Ad loading overlay */
+        .ad-loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 15, 26, 0.92);
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+            backdrop-filter: blur(6px);
+        }
+        .ad-loading-overlay.active { display: flex; }
+        .ad-spinner {
+            width: 46px; height: 46px;
+            border: 4px solid rgba(255,255,255,0.15);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .ad-loading-overlay p { color: var(--text-muted); font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="drawer-overlay" id="overlay" onclick="closeDrawer()"></div>
+    <div class="ad-loading-overlay" id="ad-loading-overlay">
+        <div class="ad-spinner"></div>
+        <p>বিজ্ঞাপন লোড হচ্ছে...</p>
+    </div>
+
+    <!-- ===== DRAWER ===== -->
+    <div class="drawer" id="left-drawer">
+        <h2><i class="fas fa-video"></i> cartoon_video</h2>
+        
+        <div class="drawer-item" onclick="showPage('home-page')">
+            <i class="fas fa-home"></i> হোম
+        </div>
+        <div class="drawer-item" onclick="showPage('fav-page')">
+            <i class="fas fa-heart"></i> প্রিয় তালিকা
+        </div>
+        
+        <h3>🎨 থিম পরিবর্তন</h3>
+        <div class="theme-selector">
+            <div class="theme-dot active" style="background: #0f0f1a;" onclick="setTheme('dark')"></div>
+            <div class="theme-dot" style="background: #f5f5fa;" onclick="setTheme('light')"></div>
+            <div class="theme-dot" style="background: #1a0a1a;" onclick="setTheme('pink')"></div>
+            <div class="theme-dot" style="background: #0a1a0a;" onclick="setTheme('green')"></div>
+        </div>
+
+        <h3>🔗 আমাদের সোশ্যাল</h3>
+        <div id="social-links-container"></div>
+    </div>
+
+    <!-- ===== HEADER ===== -->
+    <header>
+        <button class="icon-btn" onclick="openDrawer()"><i class="fas fa-bars"></i></button>
+        <div class="header-title" onclick="showPage('home-page')">
+            <i class="fas fa-film"></i> cartoon_video
+            <span class="header-badge">ভালো লাগা</span>
+        </div>
+    </header>
+
+    <!-- ===== PAGES ===== -->
+    <main>
+        <!-- HOME PAGE -->
+        <div id="home-page" class="page active">
+            <div class="search-container">
+                <input type="text" class="search-box" id="search-input" placeholder="🔍 ক্যাটাগরি খুঁজুন..." oninput="searchCategories()">
+            </div>
+            <div class="category-grid" id="category-display"></div>
+        </div>
+
+        <!-- VIDEOS PAGE (Category Details) -->
+        <div id="videos-page" class="page">
+            <div class="back-row">
+                <button class="back-btn" onclick="showPage('home-page')"><i class="fas fa-arrow-left"></i> ফিরে</button>
+                <h2 id="videos-page-title">ক্যাটাগরি</h2>
+            </div>
+            <div class="video-grid" id="videos-display"></div>
+        </div>
+
+        <!-- FAVOURITES PAGE -->
+        <div id="fav-page" class="page">
+            <h2 style="margin-bottom: 15px; font-size: 18px; padding: 15px 15px 0;"><i class="fas fa-heart" style="color: #e84393;"></i> আপনার প্রিয় ভিডিও</h2>
+            <div class="video-grid" id="fav-display" style="padding: 15px;"></div>
+        </div>
+
+        <!-- VIDEO PLAYER PAGE -->
+        <div id="player-page" class="page">
+            <div class="player-back-row">
+                <button class="back-btn" onclick="closePlayer()"><i class="fas fa-arrow-left"></i></button>
+                <h2>ভিডিও প্লেয়ার</h2>
+            </div>
+            <div class="player-video-wrap" id="player-video-wrap"></div>
+            <div class="player-info">
+                <div class="player-title" id="player-title"></div>
+                <div class="player-meta-row">
+                    <div class="player-channel" id="player-channel"></div>
+                </div>
+            </div>
+            <div class="next-videos-title"><i class="fas fa-list"></i> পরবর্তী ভিডিওসমূহ</div>
+            <div class="next-videos-list" id="next-videos-list"></div>
+        </div>
+    </main>
+
+    <!-- ===== AD TRIGGER ZONE ===== -->
+    <div id="ad-trigger-zone" style="display:none;"></div>
+
+    <script>
+        // ===== FIREBASE =====
+        const firebaseConfig = {
+  apiKey: "AIzaSyArhEGMRbRanQJ3EN4SWXkgQ9lOBHLcaAs",
+  authDomain: "tereden-video.firebaseapp.com",
+  databaseURL: "https://tereden-video-default-rtdb.firebaseio.com",
+  projectId: "tereden-video",
+  storageBucket: "tereden-video.firebasestorage.app",
+  messagingSenderId: "270730372096",
+  appId: "1:270730372096:web:04c6b2e62e9087c663a4e5"
+};
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ===== STATE =====
+        let allCategories = {};
+        let currentCategoryId = "";
+        let allVideos = {};
+        let previousPageBeforePlayer = 'home-page';
+        let currentPlayingKey = null;
+        let currentSourceList = {};
+
+        // ===== ADSGRAM =====
+        let AdController = null;
+        let adsgramBlockId = "";
+        db.ref('settings/adsgram').on('value', snap => {
+            const data = snap.val() || {};
+            adsgramBlockId = data.blockId || "";
+            if (adsgramBlockId && window.Adsgram) {
+                try {
+                    AdController = window.Adsgram.init({ blockId: adsgramBlockId });
+                } catch (e) {
+                    console.error('Adsgram init failed:', e);
+                    AdController = null;
+                }
+            } else {
+                AdController = null;
+            }
+        });
+
+        // ===== THEME =====
+        function setTheme(theme) {
+            const themes = {
+                dark: { bg: '#0f0f1a', surface: '#1a1a2e', text: '#e8e8f0', muted: '#8888aa', accent: '#6c5ce7' },
+                light: { bg: '#f0f0f8', surface: '#ffffff', text: '#1a1a2e', muted: '#666688', accent: '#6c5ce7' },
+                pink: { bg: '#1a0a1a', surface: '#2a1a2a', text: '#f0d0e0', muted: '#a080a0', accent: '#e84393' },
+                green: { bg: '#0a1a0a', surface: '#1a2a1a', text: '#d0f0d0', muted: '#80a080', accent: '#00b894' }
+            };
+            const t = themes[theme] || themes.dark;
+            document.documentElement.style.setProperty('--bg-color', t.bg);
+            document.documentElement.style.setProperty('--surface-color', t.surface);
+            document.documentElement.style.setProperty('--text-color', t.text);
+            document.documentElement.style.setProperty('--text-muted', t.muted);
+            document.documentElement.style.setProperty('--accent', t.accent);
+            
+            document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'));
+            document.querySelector(`.theme-dot[style*="${t.bg}"]`)?.classList.add('active');
+            
+            localStorage.setItem('video_app_theme', theme);
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('video_app_theme') || 'dark';
+        setTheme(savedTheme);
+
+        // ===== DRAWER =====
+        function openDrawer() {
+            document.getElementById('left-drawer').classList.add('active');
+            document.getElementById('overlay').style.display = 'block';
+        }
+        function closeDrawer() {
+            document.getElementById('left-drawer').classList.remove('active');
+            document.getElementById('overlay').style.display = 'none';
+        }
+        document.getElementById('overlay').addEventListener('click', closeDrawer);
+
+        // ===== PAGE NAVIGATION =====
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            // Don't persist the player page as the "last page" (it needs context to reopen)
+            if (pageId !== 'player-page') {
+                localStorage.setItem('last_video_page', pageId);
+            }
+            closeDrawer();
+        }
+
+        // Restore last page
+        const lastPage = localStorage.getItem('last_video_page') || 'home-page';
+        showPage(lastPage);
+
+        // ===== SOCIAL MEDIA =====
+        db.ref('social_media').on('value', snapshot => {
+            const data = snapshot.val() || {};
+            const container = document.getElementById('social-links-container');
+            container.innerHTML = '';
+            for (let key in data) {
+                container.innerHTML += `
+                    <a href="${data[key].link}" target="_blank" class="social-item">
+                        <img src="${data[key].icon}" alt="${data[key].name}">
+                        ${data[key].name}
+                    </a>
+                `;
+            }
+        });
+
+        // ===== CATEGORIES =====
+        db.ref('categories').on('value', snapshot => {
+            allCategories = snapshot.val() || {};
+            renderCategories();
+        });
+
+        function renderCategories() {
+            const container = document.getElementById('category-display');
+            container.innerHTML = '';
+            
+            const ids = Object.keys(allCategories);
+            if (ids.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-folder-open"></i>
+                        <p>কোনো ক্যাটাগরি নেই।<br>অ্যাডমিন প্যানেলে যোগ করুন!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            for (let id of ids) {
+                const cat = allCategories[id];
+                const count = cat.videos ? Object.keys(cat.videos).length : 0;
+                container.innerHTML += `
+                    <div class="category-card" onclick="openCategory('${id}')">
+                        <img src="${cat.coverImage || 'https://via.placeholder.com/300x180?text=Category'}" alt="${cat.name}">
+                        <div class="info">
+                            <div class="name">${cat.name}</div>
+                            <div class="count"><i class="fas fa-video"></i> ${count}টি ভিডিও</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ===== OPEN CATEGORY → SHOW VIDEOS =====
+        function openCategory(categoryId) {
+            currentCategoryId = categoryId;
+            const cat = allCategories[categoryId];
+            if (!cat) return;
+            
+            document.getElementById('videos-page-title').innerText = cat.name;
+            showPage('videos-page');
+            
+            // Load videos for this category
+            db.ref(`categories/${categoryId}/videos`).on('value', snapshot => {
+                allVideos = snapshot.val() || {};
+                renderVideos(allVideos);
+            });
+        }
+
+        function renderVideos(videos) {
+            const container = document.getElementById('videos-display');
+            container.innerHTML = '';
+            
+            const keys = Object.keys(videos);
+            if (keys.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-film"></i>
+                        <p>এই ক্যাটাগরিতে এখনো কোনো ভিডিও নেই।</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            for (let key of keys) {
+                const v = videos[key];
+                // Generate thumbnail
+                let thumb = v.thumbnail || 'https://via.placeholder.com/320x180?text=Video';
+                if (v.link && v.link.includes('youtube.com/watch?v=')) {
+                    const videoId = v.link.split('v=')[1]?.split('&')[0];
+                    if (videoId) thumb = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                }
+                if (v.link && v.link.includes('youtu.be/')) {
+                    const videoId = v.link.split('youtu.be/')[1]?.split('?')[0];
+                    if (videoId) thumb = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                }
+                
+                const isFav = localStorage.getItem('fav_video_' + key) ? '❤️' : '🤍';
+                
+                container.innerHTML += `
+                    <div class="video-card">
+                        <div class="thumbnail" onclick="handleVideoClick('${key}', allVideos)">
+                            <img src="${thumb}" alt="${v.name}" onerror="this.src='https://via.placeholder.com/320x180?text=No+Thumbnail'">
+                            <div class="play-btn"><i class="fas fa-play"></i></div>
+                        </div>
+                        <div class="info">
+                            <div class="title">${v.name || 'ভিডিও'}</div>
+                            <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:13px; color:var(--text-muted);">
+                                <span>${v.link ? '🔗 লিংক' : ''}</span>
+                                <span onclick="event.stopPropagation(); toggleFav('${key}')" style="cursor:pointer;">
+                                    ${isFav}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // ===== VIDEO PLAYER (in-app) WITH ADSGRAM AD =====
+        function handleVideoClick(key, sourceList) {
+            // remember which page we came from so the back button returns correctly
+            const activePage = document.querySelector('.page.active');
+            if (activePage && activePage.id !== 'player-page') {
+                previousPageBeforePlayer = activePage.id;
+            }
+            currentPlayingKey = key;
+            currentSourceList = sourceList;
+            showAdThenOpenPlayer();
+        }
+
+        function showAdThenOpenPlayer() {
+            if (AdController) {
+                const overlay = document.getElementById('ad-loading-overlay');
+                overlay.classList.add('active');
+                AdController.show()
+                    .then(() => {
+                        overlay.classList.remove('active');
+                        openPlayer();
+                    })
+                    .catch(() => {
+                        // Ad failed to load / was skipped — still play the video
+                        overlay.classList.remove('active');
+                        openPlayer();
+                    });
+            } else {
+                openPlayer();
+            }
+        }
+
+        function getEmbedHtml(link) {
+            if (!link) return '';
+            let ytId = null;
+            if (link.includes('youtube.com/watch?v=')) ytId = link.split('v=')[1]?.split('&')[0];
+            if (link.includes('youtu.be/')) ytId = link.split('youtu.be/')[1]?.split('?')[0];
+            if (ytId) {
+                return `<iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`;
+            }
+            if (link.includes('vimeo.com/')) {
+                const vId = link.split('vimeo.com/')[1]?.split('?')[0];
+                return `<iframe src="https://player.vimeo.com/video/${vId}?autoplay=1" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+            }
+            // Direct MP4 / other video file
+            return `<video controls autoplay playsinline src="${link}"></video>`;
+        }
+
+        function openPlayer() {
+            const v = currentSourceList[currentPlayingKey];
+            if (!v) return;
+
+            document.getElementById('player-title').innerText = v.name || 'ভিডিও';
+            document.getElementById('player-channel').innerText =
+                (allCategories[currentCategoryId] && allCategories[currentCategoryId].name) || 'cartoon_video';
+
+            document.getElementById('player-video-wrap').innerHTML = getEmbedHtml(v.link);
+
+            renderNextVideos();
+            showPage('player-page');
+        }
+
+        function renderNextVideos() {
+            const container = document.getElementById('next-videos-list');
+            container.innerHTML = '';
+
+            const keys = Object.keys(currentSourceList).filter(k => k !== currentPlayingKey);
+            if (keys.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-film"></i>
+                        <p>আর কোনো পরবর্তী ভিডিও নেই।</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const channelName = (allCategories[currentCategoryId] && allCategories[currentCategoryId].name) || 'cartoon_video';
+
+            for (let key of keys) {
+                const v = currentSourceList[key];
+                let thumb = v.thumbnail || 'https://via.placeholder.com/160x90?text=Video';
+                if (v.link && v.link.includes('youtube.com/watch?v=')) {
+                    const videoId = v.link.split('v=')[1]?.split('&')[0];
+                    if (videoId) thumb = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                }
+                if (v.link && v.link.includes('youtu.be/')) {
+                    const videoId = v.link.split('youtu.be/')[1]?.split('?')[0];
+                    if (videoId) thumb = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                }
+                container.innerHTML += `
+                    <div class="next-video-item" onclick="handleVideoClick('${key}', currentSourceList)">
+                        <div class="next-thumb">
+                            <img src="${thumb}" alt="${v.name}" onerror="this.src='https://via.placeholder.com/160x90?text=No+Thumb'">
+                        </div>
+                        <div class="next-info">
+                            <div class="next-title">${v.name || 'ভিডিও'}</div>
+                            <div class="next-channel">${channelName}</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function closePlayer() {
+            // Stop playback by clearing the embed
+            document.getElementById('player-video-wrap').innerHTML = '';
+            showPage(previousPageBeforePlayer || 'home-page');
+        }
+
+        // ===== FAVOURITES =====
+        function toggleFav(videoKey) {
+            const key = 'fav_video_' + videoKey;
+            if (localStorage.getItem(key)) {
+                localStorage.removeItem(key);
+            } else {
+                localStorage.setItem(key, 'true');
+            }
+            // Re-render current videos
+            renderVideos(allVideos);
+            renderFavourites();
+        }
+
+        function renderFavourites() {
+            const container = document.getElementById('fav-display');
+            container.innerHTML = '';
+            
+            let hasFav = false;
+            for (let key in allVideos) {
+                if (localStorage.getItem('fav_video_' + key)) {
+                    hasFav = true;
+                    const v = allVideos[key];
+                    let thumb = v.thumbnail || 'https://via.placeholder.com/320x180?text=Video';
+                    if (v.link && v.link.includes('youtube.com/watch?v=')) {
+                        const videoId = v.link.split('v=')[1]?.split('&')[0];
+                        if (videoId) thumb = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                    }
+                    if (v.link && v.link.includes('youtu.be/')) {
+                        const videoId = v.link.split('youtu.be/')[1]?.split('?')[0];
+                        if (videoId) thumb = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                    }
+                    container.innerHTML += `
+                        <div class="video-card">
+                            <div class="thumbnail" onclick="handleVideoClick('${key}', allVideos)">
+                                <img src="${thumb}" alt="${v.name}" onerror="this.src='https://via.placeholder.com/320x180?text=No+Thumbnail'">
+                                <div class="play-btn"><i class="fas fa-play"></i></div>
+                            </div>
+                            <div class="info">
+                                <div class="title">${v.name || 'ভিডিও'}</div>
+                                <div style="margin-top:8px; font-size:13px; color:var(--text-muted);">
+                                    <span onclick="event.stopPropagation(); toggleFav('${key}')" style="cursor:pointer;">❤️ সরান</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            if (!hasFav) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-heart" style="color: #e84393;"></i>
+                        <p>আপনার প্রিয় তালিকা খালি।<br>ভিডিও দেখে ❤️ চাপুন!</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ===== SEARCH =====
+        function searchCategories() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const container = document.getElementById('category-display');
+            container.innerHTML = '';
+            
+            let found = false;
+            for (let id in allCategories) {
+                const cat = allCategories[id];
+                if (cat.name.toLowerCase().includes(query)) {
+                    found = true;
+                    const count = cat.videos ? Object.keys(cat.videos).length : 0;
+                    container.innerHTML += `
+                        <div class="category-card" onclick="openCategory('${id}')">
+                            <img src="${cat.coverImage || 'https://via.placeholder.com/300x180?text=Category'}" alt="${cat.name}">
+                            <div class="info">
+                                <div class="name">${cat.name}</div>
+                                <div class="count"><i class="fas fa-video"></i> ${count}টি ভিডিও</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            if (!found && query.trim() !== '') {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-search"></i>
+                        <p>"${query}" এর সাথে মেলে এমন কোনো ক্যাটাগরি নেই।</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ===== FAVOURITES SYNC =====
+        // Re-render favourites when page becomes active
+        document.addEventListener('DOMContentLoaded', () => {
+            renderFavourites();
+        });
+
+        // Also render favs when page is shown
+        const favPageObserver = new MutationObserver(() => {
+            if (document.getElementById('fav-page').classList.contains('active')) {
+                renderFavourites();
+            }
+        });
+        favPageObserver.observe(document.getElementById('fav-page'), { attributes: true, attributeFilter: ['class'] });
+
+        console.log('🎬 cartoon_video ইউজার অ্যাপ সক্রিয়!');
+    </script>
+</body>
+</html>
