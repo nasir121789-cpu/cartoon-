@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ai_video - Video App</title>
+    <title>Ai_video - Video App</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
@@ -440,7 +440,7 @@
 
     <!-- ===== DRAWER ===== -->
     <div class="drawer" id="left-drawer">
-        <h2><i class="fas fa-video"></i> cartoon_video</h2>
+        <h2><i class="fas fa-video"></i> Ai_video</h2>
         
         <div class="drawer-item" onclick="showPage('home-page')">
             <i class="fas fa-home"></i> হোম
@@ -465,7 +465,7 @@
     <header>
         <button class="icon-btn" onclick="openDrawer()"><i class="fas fa-bars"></i></button>
         <div class="header-title" onclick="showPage('home-page')">
-            <i class="fas fa-film"></i> cartoon_video
+            <i class="fas fa-film"></i> Ai_video
             <span class="header-badge">ভালো লাগা</span>
         </div>
     </header>
@@ -744,7 +744,7 @@
 
             document.getElementById('player-title').innerText = v.name || 'ভিডিও';
             document.getElementById('player-channel').innerText =
-                (allCategories[currentCategoryId] && allCategories[currentCategoryId].name) || 'cartoon_video';
+                (allCategories[currentCategoryId] && allCategories[currentCategoryId].name) || 'Ai_video';
 
             // Show custom download button only if it is a direct video link (not YouTube/Vimeo)
             const isExternalVideo = v.link.includes('youtube.com') || v.link.includes('youtu.be') || v.link.includes('vimeo.com');
@@ -784,7 +784,7 @@
                 container.innerHTML = `<div class="empty-state"><i class="fas fa-film"></i><p>পরবর্তী ভিডিও নেই।</p></div>`;
                 return;
             }
-            const channelName = (allCategories[currentCategoryId] && allCategories[currentCategoryId].name) || 'cartoon_video';
+            const channelName = (allCategories[currentCategoryId] && allCategories[currentCategoryId].name) || 'Ai_video';
             for (let key of keys) {
                 const v = currentSourceList[key];
                 let thumb = v.thumbnail || 'https://via.placeholder.com/160x90?text=Video';
@@ -876,4 +876,4 @@
 
     </script>
 </body>
-    </html>
+</html>
